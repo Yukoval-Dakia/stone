@@ -7,6 +7,7 @@ const Scientist = require('../models/Scientist');
 const sharp = require('sharp');
 const cloudinary = require('../config/cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { generateRandomColor } = require('../utils/randomColor');
 
 // 配置 Cloudinary 存储
 const storage = new CloudinaryStorage({
@@ -108,21 +109,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-// 生成随机颜色
-const generateRandomColor = () => {
-  const colors = [
-    '#3498db', // 蓝色
-    '#e74c3c', // 红色
-    '#2ecc71', // 绿色
-    '#f1c40f', // 黄色
-    '#9b59b6', // 紫色
-    '#1abc9c', // 青色
-    '#e67e22', // 橙色
-    '#34495e'  // 深蓝色
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-};
 
 // 创建新科学家（支持直接数据和文件上传）
 router.post('/', async (req, res) => {

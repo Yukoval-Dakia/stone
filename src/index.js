@@ -3,11 +3,11 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const axios = require('axios');
 const dotenv = require('dotenv');
-const cheerio = require('cheerio');
 const path = require('path');
 const scientistsRouter = require('./routes/scientists');
 const messagesRouter = require('./routes/messages');
-const ACG_IMAGES = require('./acg-images.json');
+const { getRandomImage } = require('./utils/randomImage');
+const { optimizeContent } = require('./utils/optimizeContent');
 
 // 加载环境变量
 dotenv.config();
@@ -21,23 +21,6 @@ const ACG_GITHUB_API = 'https://api.github.com/repos/jyeric/acg-pictures/content
 let acgImageList = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600000; // 1小时缓存
-
-// 使用 CDN 加速 GitHub raw 内容
-function convertToCDN(githubUrl, country) {
-  if (country === 'CN') {
-    console.log('使用中国CDN:', githubUrl);
-    console.log('国家:', country);
-    return githubUrl
-      .replace('https://raw.githubusercontent.com', 'https://cdn.jsdmirror.com/gh')
-      .replace('/master/', '/');
-  } else {
-    console.log('使用国际CDN:', githubUrl);
-    console.log('国家:', country);
-    return githubUrl
-      .replace('https://raw.githubusercontent.com', 'https://cdn.jsdelivr.net/gh')
-      .replace('/master/', '/');
-  }
-}
 
 // 获取ACG图片列表
 const fetchACGImageList = async () => {
@@ -71,20 +54,6 @@ const fetchACGImageList = async () => {
       return acgImageList;
     }
     throw error;
-  }
-};
-
-// 获取随机ACG图片
-const getRandomImage = async (country) => {
-  try {
-    // 直接从预加载的列表中随机选择
-    const randomImage = ACG_IMAGES[Math.floor(Math.random() * ACG_IMAGES.length)];
-    // 使用 jsDelivr CDN
-    return convertToCDN(randomImage, country);
-  } catch (error) {
-    console.error('获取随机图片失败:', error);
-    // 如果出错则使用 Picsum 作为后备
-    return 'https://picsum.photos/800/400';
   }
 };
 
@@ -301,61 +270,6 @@ mongoose.connection.on('disconnected', () => {
 });
 
 connectWithRetry();
-
-// 内容优化函数
-const optimizeContent = (content) => {
-  const $ = cheerio.load(content);
-  
-  // 优化图片
-  $('img').each((i, elem) => {
-    const img = $(elem);
-    // 添加懒加载
-    img.attr('loading', 'lazy');
-    // 添加alt属性（如果没有）
-    if (!img.attr('alt')) {
-      img.attr('alt', '图片');
-    }
-    // 添加响应式类
-    img.addClass('responsive-image');
-  });
-  
-  // 优化链接
-  $('a').each((i, elem) => {
-    const link = $(elem);
-    const href = link.attr('href');
-    if (href && !href.startsWith('/') && !href.startsWith('#')) {
-      // 外部链接
-      link.attr('target', '_blank');
-      link.attr('rel', 'noopener noreferrer');
-      // 添加外部链接图标类
-      link.addClass('external-link');
-    }
-  });
-  
-  // 优化标题
-  $('h1, h2, h3, h4, h5, h6').each((i, elem) => {
-    const heading = $(elem);
-    // 添加锚点链接
-    const id = heading.text().toLowerCase().replace(/\s+/g, '-');
-    heading.attr('id', id);
-  });
-  
-  // 优化表格
-  $('table').each((i, elem) => {
-    const table = $(elem);
-    // 添加响应式表格包装
-    table.wrap('<div class="table-responsive"></div>');
-    table.addClass('table');
-  });
-  
-  // 优化代码块
-  $('pre').each((i, elem) => {
-    const pre = $(elem);
-    pre.addClass('code-block');
-  });
-  
-  return $.html();
-};
 
 // API路由
 app.get('/api/health', (req, res) => {
